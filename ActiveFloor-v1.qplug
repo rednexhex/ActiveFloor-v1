@@ -1,0 +1,177 @@
+-- BrightLogic ActiveFloor 
+-- by Matty
+-- March 2024
+
+PluginInfo = {
+  Name = "Matty~BrightLogic~BrightLogic ActiveFloor",
+  Version = "1.0",
+  BuildVersion = "1.0.0.118",
+  Id = "b3056748-b249-499f-86c9-5bddeab57f8e",
+  Author = "Matty",
+  Description = "BrightLogic ActiveFloor using HTTP"
+}
+
+function GetColor(props)
+  return { 155, 66, 245 }
+end
+
+function GetPrettyName(props) --The name that will initially display when dragged into a design
+  return "BrightLogic ActiveFloor, ver. " .. PluginInfo.Version
+end
+
+function GetProperties()
+  local props = {}
+  
+  table.insert(props, {
+    Name = "Debug Print",
+    Type = "enum",
+    Choices = {"None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All"},
+    Value = "All"
+  })
+  return props
+end
+
+function GetControls(props)
+  local ctrls = {}
+  
+  for b = 1, 10 do
+  table.insert(ctrls, {
+    Name = "filename "..b,
+    ControlType = "Text",
+    Count = 1
+  })
+  end
+  
+  table.insert(ctrls, {
+    Name = "Status",
+    ControlType = "Indicator",
+    IndicatorType = "Status",
+  })
+  
+  table.insert(ctrls, {
+    Name = "ipaddress",
+    ControlType = "Text",
+    DefaultValue = "127.0.0.1",
+    Count = 1
+  })
+  table.insert(ctrls, {
+    Name = "ResponseText",
+    ControlType = "Text",
+    Count = 1
+  })
+  return ctrls
+end
+
+function GetControlLayout(props)
+  local layout   = {}
+  local graphics = {}
+  
+  
+  table.insert(graphics, {
+    Type = "Text",
+    Text = "IP Address",
+    Position = {0 , 10},
+    Size = {80, 16},
+    FontSize = 12,
+    HTextAlign = "Left"
+  })
+  layout["ipaddress"] = {
+    Legend = "ipaddress",
+    Color = {153, 156, 161},
+    FontSize = 12,
+    Style = "Text",
+    Position = {70 , 10},
+    Size = {100, 16}
+  } 
+  
+  
+  
+  table.insert(graphics, {
+    Type = "Text",
+    Text = "Status:",
+    Position = {0, 30},
+    Size = {50, 16},
+    FontSize = 10,
+    HTextAlign = "Left"
+  })
+  
+  layout["Status"] = {
+    PrettyName = "Connection Status", 
+    Style = "Text",
+    Position = {70, 30}, 
+    Size = {100, 16}
+  }
+  
+  
+  
+  for a = 1, 10 do
+    layout["SendGet"..string.format("%d",a)] = {
+    PrettyName = "snd"..string.format("%d",a),
+    Style = "Button",
+    Legend = "Send",
+    Position = {0, 50 + 25 * a}, 
+    Size = {40, 20}
+  }
+  end
+  
+  for b = 1, 10 do
+  layout["filename "..b] = {
+    PrettyName = "filename", 
+    Style = "Text",
+    Position = {35, 50 + 25 * b}, 
+    Size = {120, 20}
+  }
+  end
+  return layout, graphics
+end
+
+--Start event based logic
+if Controls then
+  
+  
+  -- Aliases
+  Status = Controls.Status
+  SendGet = Controls.SendGet
+  ResponseText = Controls.ResponseText
+  
+  -- Constants
+  StatusState = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5}  -- Status states in designer
+  
+  -- Variables
+  RequestTimeout = 10                    -- Timeout of the connection in seconds
+  Host = Controls.ipaddress                 -- HTTP server host name or IP address to use for connection
+  IPAddress = Controls.ipaddress            -- IP address can be for host
+  
+  -- Send an HTTP GET request to the defined
+  function GetRequest()
+    -- Define any HTTP headers to sent
+    headers = {
+      ["Content-Type"] = "text/html",
+      ["Accept"] = "text/html"
+    }
+    -- Generate the URL of the request using HTTPClient formatter
+    url = HttpClient.CreateUrl({
+      ["Host"] = Host,
+      ["Port"] = Port,
+      ["Path"] = "get",
+      ["Query"] = QueryData
+    })
+  
+    print("Sending GET request to: " .. url.Host)
+    HttpClient.Download({ 
+      Url          = url,
+      Method       = "GET",
+      Headers      = headers,
+      User         = Username,  -- Only needed if device requires a sign in
+      Password     = Password,  -- Only needed if device requires a sign in
+      Timeout      = RequestTimeout,
+      EventHandler = ResponseHandler
+    })
+  end
+  
+  for snd = 1, 10 do
+    Controls["SendGet"..snd].EventHandler = function()
+            print("howdy "..snd)
+    end
+  end   
+end
